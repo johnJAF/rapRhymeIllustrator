@@ -15,16 +15,12 @@ def azLyricScrape(link):
     response = requests.get(link) # opening up response again in order to actually pull the html of the specific website we want up
     
     # soup contains the entire website html
-    soup = BeautifulSoup(response.text, 'html.parser')\
+    soup = BeautifulSoup(response.text, 'html.parser')
     
     comments = soup.find_all(string=lambda text: isinstance(text, Comment))
     for comment in comments:
         if "Usage of azlyrics.com content" in comment:
-            print(comment.parent)
-        
-
-    
-    
+            print(comment.parent.prettify())
     
 # grab da link
 def grabDaLink():
@@ -47,9 +43,7 @@ def grabDaLink():
                 continue
         else:
             print("this shi is not a link")
-            continue
-        
-    
+            continue  
         
 # goal for main function (for now): 
     # call on funciton to grab from azlyrics
