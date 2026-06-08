@@ -34,10 +34,8 @@ def azLyricScrape(link):
     # print(lyricsOnly)
     
     listOfLines = lyricsOnly.splitlines() # turns string into list of lines
-    listOfLinesNoBlanks = [] 
     
     # i have to do this bs to remove blanks bc splitlines doesnt just skip blanks 
-    
     with open("lyricsholder.txt", "w") as f:
 
         for line in listOfLines:
