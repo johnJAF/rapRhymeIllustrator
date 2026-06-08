@@ -1,6 +1,7 @@
 # shi for web scraping
 import requests
 from bs4 import BeautifulSoup
+from bs4 import Comment
 # parsing for links to make sure links are links
 from urllib.parse import urlparse
 
@@ -10,8 +11,18 @@ def azLyricScrape(link):
     if "https://www.azlyrics.com/lyrics" not in link:
         print("this shit is not valid")
         return
-    else:
-        print("not only is your link valid but you also managed to grab the website from azlyrics :)")
+    
+    response = requests.get(link) # opening up response again in order to actually pull the html of the specific website we want up
+    
+    # soup contains the entire website html
+    soup = BeautifulSoup(response.text, 'html.parser')\
+    
+    comments = soup.find_all(string=lambda text: isinstance(text, Comment))
+    for comment in comments:
+        if "Usage of azlyrics.com content" in comment:
+            print(comment.parent)
+        
+
     
     
     
