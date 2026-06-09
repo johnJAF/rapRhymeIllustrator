@@ -35,17 +35,21 @@ def azLyricScrape(link):
     
     listOfLines = lyricsOnly.splitlines() # turns string into list of lines
     
+    saveToTxt(listOfLines) # doing this for debugging purposes, i think it would be more optimal to just keep this list in memory to iteratively go over it and such
+    
+    return listOfLines
+        
+# save to a txt file
+def saveToTxt(listOfLyrics):
     # i have to do this bs to remove blanks bc splitlines doesnt just skip blanks 
     with open("lyricsholder.txt", "w") as f:
 
-        for line in listOfLines:
+        for line in listOfLyrics:
             if line == "":
                 continue
             else:
                 f.write(line + "\n")
                 continue
-        
-    
     
 # grab da link
 def grabDaLink():
@@ -83,7 +87,9 @@ def main():
     # if we figure genius out we could go there too
     # if its an apple or spotify api we can figre that out IDK
     
-    azLyricScrape(link)
+    listOfLyrics = azLyricScrape(link)
+    
+    
     
 if __name__ == "__main__":
     main()
