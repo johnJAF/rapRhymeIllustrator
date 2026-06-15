@@ -6,7 +6,36 @@ from bs4 import Comment
 from urllib.parse import urlparse
 # regex parsing
 import re
+# struct
+from dataclasses import dataclass
 
+phonemes = {} # dicionary for the phonemes dict that is in the .txt files
+
+allWords = [] # list of all the words that the lyricsholder will be turned into
+
+# i want to build this as a struct python classes are goofy to me
+@dataclass
+class WordData:
+    original_word: str # "beat"
+    phonemes: str      # "B IY1 T"
+    rhyme_tail: str    # "IY1 T"
+    line_number: int   # 3
+    word_in_line: int  # 2
+    global_position: int # 15
+
+# load up all of the dictionary words into a python dictionary
+def loadDicitonary():
+    with open("cmudict_SPHINX_40.txt", "r") as f:
+        delimited = ""
+        
+        for line in f:
+            if line == "":
+                continue
+            
+            delimited = line.split(maxsplit=1) # for each line were going to split it at exactly its delimiter ONLY once
+            
+            phonemes[delimited[0]] = delimited[1].strip() # add each split line into dictionary, strip removes the \n at the end of each word
+        
 # function for grabbing web scrape from azlyrics
 def azLyricScrape(link):
     # just in case link passes all checks but isnt actuall an azlyrics link 
@@ -38,6 +67,49 @@ def azLyricScrape(link):
     saveToTxt(listOfLines) # doing this for debugging purposes, i think it would be more optimal to just keep this list in memory to iteratively go over it and such
     
     return listOfLines
+
+# assumes word is a word, and has a phonetic translation
+def createWordDataObject(word, phoneticVersion, tail, lineNumber, wordInLine, globalPosition):
+    word = WordData(word, phoneticVersion, tail, lineNumber, wordInLine, globalPosition)
+    
+    allWords.append(word)
+
+def isInCMU(word)->bool:
+    if word in phonemes:
+        return True
+    
+def grabEndRhyme(phoneticVersion):
+    phonemes = ""
+    phonemes = phoneticVersion.split()
+    
+    endRhyme = ""
+    # work backwards from the phonemes because well be able to find the last stressed vowel 
+    # last stressed vowel matters because thats usually what part of the word is rhymed with
+    # if we keep that we get to see the end-rhyme
+    for x in range(len(phonemes) - 1, -1, -1): 
+        if "1" in phonemes[x] or "2" in phonemes[x]: # if we find where the last-stressed-vowel is
+            endRhyme = phonemes[x:] # grab the phonemes from the LSV to the end
+            
+    return endRhyme
+
+# assumes that the phonemes are already loaded and that the lyrics have already been processed for phonetification (not a word?)
+def turnLyricsToPhonetic(listOfLyrics):
+    lineNumber = 0
+    globalPosition = 0
+    # first grab a line from the song
+    for line in listOfLyrics:
+        # split that line into words
+        words = ""
+        words = line.split()
+        for word in words:
+            word = word.upper()
+            wordInLine = 0
+            if isInCMU(word):
+                endRhyme = grabEndRhyme(phonemes[word])
+                createWordDataObject(word, phonemes[word], endRhyme, lineNumber, wordInLine, globalPosition)
+            wordInLine += 1
+            globalPosition += 1 # tells us which word exactly in the grand scheme of the lyrics we're at
+        lineNumber += 1 # tells us what line (within the verses) we're at
         
 # save to a txt file
 def saveToTxt(listOfLyrics):
@@ -72,7 +144,7 @@ def grabDaLink():
                 print("this link does not exist")
                 continue
         else:
-            print("this shi is not a link")
+            print("this is not a link")
             continue  
         
 # goal for main function (for now): 
@@ -81,15 +153,19 @@ def grabDaLink():
     # azlyric function spits out a .txt where we get all of the websites data
     # main will look at such txt and print it out
 def main():
+    loadDicitonary()
+    
     link = grabDaLink()
     
     # i could probably add some like link checker so for ex: if its a azlyrics link then we go to that fucntion
     # if we figure genius out we could go there too
     # if its an apple or spotify api we can figre that out IDK
     
-    listOfLyrics = azLyricScrape(link)
+    listOfLyrics = azLyricScrape(link) 
     
+    turnLyricsToPhonetic(listOfLyrics)
     
+    print(allWords)
     
 if __name__ == "__main__":
     main()
