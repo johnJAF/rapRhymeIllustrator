@@ -43,7 +43,7 @@ def azLyricScrape(link):
         print("this is not valid")
         return
     
-    response = requests.get(link, headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.5 Safari/605.1.15"}) # opening up response again in order to actually pull the html of the specific website we want up
+    response = requests.get(link) # opening up response again in order to actually pull the html of the specific website we want up
     
     # soup contains the entire website html
     soup = BeautifulSoup(response.text, 'html.parser')
@@ -175,7 +175,7 @@ def grabDaLink():
         # check if link is an actual link at all
         if linkObject.scheme and linkObject.netloc:
             # now lets check if the website exists at all
-            response = requests.get(linkString, headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.5 Safari/605.1.15"})
+            response = requests.get(linkString)
             
             if response.status_code == 200: # 200 = successful website request
                 #print("this link si real and the website exists")
