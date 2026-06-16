@@ -40,10 +40,10 @@ def loadDicitonary():
 def azLyricScrape(link):
     # just in case link passes all checks but isnt actuall an azlyrics link 
     if "https://www.azlyrics.com/lyrics" not in link:
-        print("this shit is not valid")
+        print("this is not valid")
         return
     
-    response = requests.get(link) # opening up response again in order to actually pull the html of the specific website we want up
+    response = requests.get(link, headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.5 Safari/605.1.15"}) # opening up response again in order to actually pull the html of the specific website we want up
     
     # soup contains the entire website html
     soup = BeautifulSoup(response.text, 'html.parser')
@@ -56,17 +56,45 @@ def azLyricScrape(link):
     for comment in comments:
         if "Usage of azlyrics.com content" in comment:
             textFromWebsite = comment.parent.text.strip() # this skips all the html bs and gets ONLY the text
+        elif "Bot Ban" in comment: 
+            print("your access is flagged bc you spammed the website too much")
+        else: 
+            print("this is not pulling the right web page")
+            return ""
             
     # now that we have the actual lyrics, lets parse the lyrics so we can genuinely get what we need.
     lyricsOnly = re.sub("\\[.+?\\]", "", textFromWebsite) # .+? is telling regex "any block of text with any thing in between [ and ] is fair game to remove"
-    
-    # print(lyricsOnly)
+    lyricsOnly = re.sub("\\(.+?\\)", "", lyricsOnly)
     
     listOfLines = lyricsOnly.splitlines() # turns string into list of lines
     
-    saveToTxt(listOfLines) # doing this for debugging purposes, i think it would be more optimal to just keep this list in memory to iteratively go over it and such
+    betterListOfLines = [line for line in listOfLines if line != ""] # hey i dont want anything "" related
     
-    return listOfLines
+    saveToTxt(betterListOfLines) # doing this for debugging purposes, i think it would be more optimal to just keep this list in memory to iteratively go over it and such
+    
+    return betterListOfLines
+
+# this funciton assumes that you dont want to enter a link and your lyricsholder.txt is formatted as such:
+    # lyrics only
+    # (\n) line breaks for each direct song line
+    # can have adlibs but preferred if removed
+    # should work for copy and paste from most lyric websites
+def scrapeFromTxtOnly():
+    listOfLines = []
+    
+    # loading local file
+    with open("lyricsholder.txt", "r") as f:
+        for line in f:
+            line = re.sub("\\[.+?\\]", "", line) # should remove any [ ] enclosed text as the line comes in
+            line = re.sub("\\(.+?\\)", "", line) # should remove any adlibs or things enclsoed in ( )
+            listOfLines.append(line.strip())
+            continue
+    
+    betterListOfLines = [line for line in listOfLines if line != ""] # hey i dont want anything "" related
+    
+    saveToTxt(betterListOfLines) # doing this for debugging purposes, i think it would be more optimal to just keep this list in memory to iteratively go over it and such
+    
+    return betterListOfLines
 
 # assumes word is a word, and has a phonetic translation
 def createWordDataObject(word, phoneticVersion, tail, lineNumber, wordInLine, globalPosition):
@@ -102,13 +130,25 @@ def turnLyricsToPhonetic(listOfLyrics):
         words = ""
         words = line.split()
         for word in words:
-            word = word.upper()
+            word = word.upper().strip("!?.,;():-\"")
             wordInLine = 0
-            if isInCMU(word):
-                endRhyme = grabEndRhyme(phonemes[word])
-                createWordDataObject(word, phonemes[word], endRhyme, lineNumber, wordInLine, globalPosition)
-            wordInLine += 1
-            globalPosition += 1 # tells us which word exactly in the grand scheme of the lyrics we're at
+            
+            while True: # loop is for re-checking if new generated word is fit for CMU
+                if isInCMU(word): # only passes a word through if its immediately a dictionary entry
+                    endRhyme = grabEndRhyme(phonemes[word])
+                    createWordDataObject(word, phonemes[word], endRhyme, lineNumber, wordInLine, globalPosition)
+                elif "-" in word: # generally i assume the ladder half of a hyphenated word is the rhyming portion, that becomes the new word
+                    hyphenatedSplit = word.split("-")
+                    rhymingPortion = hyphenatedSplit[1]
+                    
+                    word = rhymingPortion # ex: if the word was hip-hop, youd restart the conditional check with "hop" instead of hip-hop
+                    continue
+                else: # word is not immediately findable
+                    createWordDataObject("NA", word, "NA", lineNumber, wordInLine, globalPosition)
+                    
+                wordInLine += 1
+                globalPosition += 1 # tells us which word exactly in the grand scheme of the lyrics we're at
+                break
         lineNumber += 1 # tells us what line (within the verses) we're at
         
 # save to a txt file
@@ -135,7 +175,7 @@ def grabDaLink():
         # check if link is an actual link at all
         if linkObject.scheme and linkObject.netloc:
             # now lets check if the website exists at all
-            response = requests.get(linkString)
+            response = requests.get(linkString, headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.5 Safari/605.1.15"})
             
             if response.status_code == 200: # 200 = successful website request
                 #print("this link si real and the website exists")
@@ -155,17 +195,48 @@ def grabDaLink():
 def main():
     loadDicitonary()
     
-    link = grabDaLink()
+    #link = grabDaLink()
     
     # i could probably add some like link checker so for ex: if its a azlyrics link then we go to that fucntion
     # if we figure genius out we could go there too
     # if its an apple or spotify api we can figre that out IDK
     
-    listOfLyrics = azLyricScrape(link) 
+    #listOfLyrics = azLyricScrape(link) 
+    #listOfLyrics = scrapeFromTxtOnly()
+    
+    #turnLyricsToPhonetic(listOfLyrics)
+    
+    #print(allWords)
+    
+    missingWords = {}
+    # load existing missing words + counts
+    with open("missingWords.txt", "r") as f:
+        for line in f:
+            line = line.strip()
+            if line == "":
+                continue
+            word, count = line.split(":", 1)
+            missingWords[word] = int(count)
+
+
+    # process every song
+    
+    listOfLyrics = scrapeFromTxtOnly()
     
     turnLyricsToPhonetic(listOfLyrics)
     
-    print(allWords)
-    
+    for word in allWords:
+        if word.original_word == "NA":
+            missingWord = word.phonemes
+            if missingWord in missingWords:
+                missingWords[missingWord] += 1
+            else:
+                missingWords[missingWord] = 1
+
+    # rewrite file with updated counts
+    with open("missingWords.txt", "w") as f:
+        for word, count in sorted(missingWords.items(), key=lambda item: item[1], reverse=True):
+            f.write(word + ":" + str(count) + "\n")    
+
 if __name__ == "__main__":
     main()
