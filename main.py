@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 # regex parsing
 import re
 # struct
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 phonemes = {} # dicionary for the phonemes dict that is in the .txt files
 
@@ -22,6 +22,9 @@ class WordData:
     line_number: int   # 3
     word_in_line: int  # 2
     global_position: int # 15
+    
+    is_rhyme: bool = False # marked true at all if this word rhymes with ANYTHING, default false
+    rhymes_with: set = field(default_factory=set) # this is a set for each object that holds rhyme-cousins (default factory calls set for each obj)
 
 # load up all of the dictionary words into a python dictionary
 def loadDicitonary():
@@ -96,9 +99,62 @@ def scrapeFromTxtOnly():
     
     return betterListOfLines
 
+
+# assumes that allWords the list full of word objects is full of properly scraped words, if word is NA it just doesn't get checked as a rhyme
+# a rhyme is decided within a sliding window of 31 words where the ten words before or after of word are checked by endRhyme to decide rhyme-ability
+def lookForRhymes():
+    LIMIT = 15
+    
+    # for index 0 in total indexes of allWords
+    for x in range(len(allWords)-1): 
+        print("Loop one")
+        
+        if allWords[x].original_word == "NA": # we will not check any direction for words that are not known
+            continue
+        
+        currentRhymeTail = allWords[x].rhyme_tail
+        
+        # left check
+        backwardsWalk = x
+        
+        # this mini loop should run until we reach LIMIT, which would be 15 steps back or 0
+        while (backwardsWalk > 0) and (not x - backwardsWalk == LIMIT): 
+            print("Loop two")
+            backwardsWalk -= 1 # since we're not at 0, lets take a looksy
+            
+            if allWords[backwardsWalk].original_word == "NA": 
+                continue
+            
+            backwardTail = allWords[backwardsWalk].rhyme_tail
+            
+            # should there be some kind of confidence calculation? because TBH i feel like comparing apples to apples is fine
+            # until we have near-rhymes and then its kinda meh but how would we even decide near-rhymes without doing some typa voodoo
+            
+            if currentRhymeTail == backwardTail: # rhyme spotted
+                print(f"rhyme spotted: {currentRhymeTail}")
+                print(type(allWords[x].rhymes_with))
+
+                print(allWords[x].rhymes_with)
+                # we just knocked two birds with one stone
+                # bc these are added to sets we enjoy not worrying abt duplicates down the line (i think)
+                allWords[x].is_rhyme = True
+                allWords[x].rhymes_with.add(allWords[backwardsWalk].global_position) # assuming that this is a set pls remmeber to change
+                
+                allWords[backwardsWalk].is_rhyme = True
+                allWords[backwardsWalk].rhymes_with.add(allWords[x].global_position)
+            else:
+                continue
+            
+        for word in allWords:
+            print(f'Word: {word.original_word}, rhymes: {word.is_rhyme}, rhymes_with: {word.rhymes_with} \n')
+        
+        # right check
+        
+        
+
 # assumes word is a word, and has a phonetic translation
 def createWordDataObject(word, phoneticVersion, tail, lineNumber, wordInLine, globalPosition):
-    word = WordData(word, phoneticVersion, tail, lineNumber, wordInLine, globalPosition)
+    word = WordData(word, phoneticVersion, tail, lineNumber, wordInLine, globalPosition) 
     
     allWords.append(word)
 
@@ -202,41 +258,15 @@ def main():
     # if its an apple or spotify api we can figre that out IDK
     
     #listOfLyrics = azLyricScrape(link) 
-    #listOfLyrics = scrapeFromTxtOnly()
-    
-    #turnLyricsToPhonetic(listOfLyrics)
-    
-    #print(allWords)
-    
-    missingWords = {}
-    # load existing missing words + counts
-    with open("missingWords.txt", "r") as f:
-        for line in f:
-            line = line.strip()
-            if line == "":
-                continue
-            word, count = line.split(":", 1)
-            missingWords[word] = int(count)
-
-
-    # process every song
-    
     listOfLyrics = scrapeFromTxtOnly()
     
     turnLyricsToPhonetic(listOfLyrics)
     
-    for word in allWords:
-        if word.original_word == "NA":
-            missingWord = word.phonemes
-            if missingWord in missingWords:
-                missingWords[missingWord] += 1
-            else:
-                missingWords[missingWord] = 1
-
-    # rewrite file with updated counts
-    with open("missingWords.txt", "w") as f:
-        for word, count in sorted(missingWords.items(), key=lambda item: item[1], reverse=True):
-            f.write(word + ":" + str(count) + "\n")    
+    lookForRhymes()
+    
+    #print(allWords)
+    
+    
 
 if __name__ == "__main__":
     main()
